@@ -6,6 +6,6 @@ import 'core/config/app_environment.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  AppEnvironment.init(AppFlavor.production);
+  AppEnvironment.init(AppFlavor.development);
   runApp(const ProviderScope(child: ChemicalInventoryApp()));
 }
