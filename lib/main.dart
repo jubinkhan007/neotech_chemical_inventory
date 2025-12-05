@@ -7,45 +7,37 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Neotech Chemical Inventory',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Inventory Dashboard'),
     );
   }
 }
 
+class ChemicalRecord {
+  const ChemicalRecord({
+    required this.name,
+    required this.containers,
+    required this.hasSds,
+    required this.incidents,
+    required this.location,
+  });
+
+  final String name;
+  final int containers;
+  final bool hasSds;
+  final int incidents;
+  final String location;
+}
+
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
 
   final String title;
 
@@ -54,69 +46,284 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  final List<ChemicalRecord> _chemicals = const [
+    ChemicalRecord(
+      name: 'Acetone',
+      containers: 3,
+      hasSds: true,
+      incidents: 1,
+      location: 'Flammable Cabinet',
+    ),
+    ChemicalRecord(
+      name: 'Hydrochloric Acid',
+      containers: 2,
+      hasSds: true,
+      incidents: 0,
+      location: 'Corrosives Cabinet',
+    ),
+    ChemicalRecord(
+      name: 'Sodium Hydroxide',
+      containers: 4,
+      hasSds: false,
+      incidents: 0,
+      location: 'Corrosives Cabinet',
+    ),
+    ChemicalRecord(
+      name: 'Ethanol',
+      containers: 5,
+      hasSds: true,
+      incidents: 2,
+      location: 'Flammable Cabinet',
+    ),
+    ChemicalRecord(
+      name: 'Ammonia',
+      containers: 1,
+      hasSds: false,
+      incidents: 0,
+      location: 'Ventilated Storage',
+    ),
+  ];
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+  int get totalChemicals => _chemicals.length;
+
+  int get availableSds => _chemicals.where((chemical) => chemical.hasSds).length;
+
+  int get incidentsReported =>
+      _chemicals.fold(0, (count, chemical) => count + chemical.incidents);
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      body: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            sliver: SliverToBoxAdapter(
+              child: DashboardSummary(
+                totalChemicals: totalChemicals,
+                sdsAvailable: availableSds,
+                incidentsReported: incidentsReported,
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            sliver: SliverList.builder(
+              itemCount: _chemicals.length,
+              itemBuilder: (context, index) {
+                final chemical = _chemicals[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      child: Text(chemical.name.substring(0, 1).toUpperCase()),
+                    ),
+                    title: Text(
+                      chemical.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    subtitle: Text('${chemical.containers} containers • ${chemical.location}'),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              chemical.hasSds ? Icons.check_circle : Icons.error_outline,
+                              color: chemical.hasSds
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.error,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(chemical.hasSds ? 'SDS' : 'Missing'),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${chemical.incidents} incidents',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DashboardSummary extends StatelessWidget {
+  const DashboardSummary({
+    super.key,
+    required this.totalChemicals,
+    required this.sdsAvailable,
+    required this.incidentsReported,
+  });
+
+  final int totalChemicals;
+  final int sdsAvailable;
+  final int incidentsReported;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colors = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+              'Dashboard Summary',
+              style: textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final bool useRowLayout = constraints.maxWidth > 600;
+                final children = [
+                  _SummaryTile(
+                    key: const Key('totalChemicalsTile'),
+                    label: 'Total chemicals',
+                    value: totalChemicals,
+                    icon: Icons.inventory_2,
+                    color: colors.primary,
+                    valueKey: const Key('totalChemicalsValue'),
+                  ),
+                  _SummaryTile(
+                    key: const Key('sdsTile'),
+                    label: 'SDS available',
+                    value: sdsAvailable,
+                    icon: Icons.description_outlined,
+                    color: colors.tertiary,
+                    valueKey: const Key('sdsValue'),
+                  ),
+                  _SummaryTile(
+                    key: const Key('incidentsTile'),
+                    label: 'Incidents reported',
+                    value: incidentsReported,
+                    icon: Icons.warning_amber_rounded,
+                    color: colors.error,
+                    valueKey: const Key('incidentsValue'),
+                  ),
+                ];
+
+                if (useRowLayout) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: children
+                        .map(
+                          (child) => Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: child,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  );
+                }
+
+                final double tileWidth = constraints.maxWidth >= 500
+                    ? (constraints.maxWidth - 8) / 2
+                    : constraints.maxWidth;
+
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: children
+                      .map(
+                        (child) => SizedBox(
+                          width: tileWidth,
+                          child: child,
+                        ),
+                      )
+                      .toList(),
+                );
+              },
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
+}
+
+class _SummaryTile extends StatelessWidget {
+  const _SummaryTile({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.valueKey,
+  });
+
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
+  final Key valueKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '$value',
+                  key: valueKey,
+                  style: textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
