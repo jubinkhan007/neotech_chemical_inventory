@@ -248,6 +248,69 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+class _SummaryTile extends StatelessWidget {
+  const _SummaryTile({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.valueKey,
+  });
+
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
+  final Key valueKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '$value',
+                  key: valueKey,
+                  style: textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class Chemical {
   const Chemical({
     required this.name,
