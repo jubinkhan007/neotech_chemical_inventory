@@ -1,20 +1,23 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
-// ignore_for_file: type=lint
 
 part of 'chemical.dart';
 
-_$$ChemicalFromJson(Map<String, dynamic> json) => _Chemical(
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+_$ChemicalImpl _$$ChemicalImplFromJson(Map<String, dynamic> json) => _$ChemicalImpl(
       id: json['id'] as String,
       name: json['name'] as String,
-      description: json['description'] as String?,
-      lastUpdated: json['lastUpdated'] == null
-          ? null
-          : DateTime.parse(json['lastUpdated'] as String),
+      casNumber: json['cas_number'] as String,
+      storageLocation: json['storage_location'] as String,
+      quantity: (json['quantity'] as num).toInt(),
     );
 
-Map<String, dynamic> _$$ChemicalToJson(_Chemical instance) => <String, dynamic>{
+Map<String, dynamic> _$$ChemicalImplToJson(_$ChemicalImpl instance) => <String, dynamic>{
       'id': instance.id,
       'name': instance.name,
-      'description': instance.description,
-      'lastUpdated': instance.lastUpdated?.toIso8601String(),
+      'cas_number': instance.casNumber,
+      'storage_location': instance.storageLocation,
+      'quantity': instance.quantity,
     };

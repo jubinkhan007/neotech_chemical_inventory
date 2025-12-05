@@ -8,9 +8,11 @@ class Chemical with _$Chemical {
   const factory Chemical({
     required String id,
     required String name,
-    String? description,
-    DateTime? lastUpdated,
+    @JsonKey(name: 'cas_number') required String casNumber,
+    @JsonKey(name: 'storage_location') required String storageLocation,
+    required int quantity,
   }) = _Chemical;
 
-  factory Chemical.fromJson(Map<String, dynamic> json) => _$ChemicalFromJson(json);
+  factory Chemical.fromJson(Map<String, dynamic> json) =>
+      _$ChemicalFromJson(json);
 }
