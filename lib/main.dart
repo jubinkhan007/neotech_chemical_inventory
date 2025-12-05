@@ -1,265 +1,248 @@
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'app.dart';
+import 'core/config/app_environment.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  AppEnvironment.init(AppFlavor.production);
+  runApp(const ProviderScope(child: ChemicalInventoryApp()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class _ChemicalCard extends StatelessWidget {
+  const _ChemicalCard({required this.chemical});
+
+  final Chemical chemical;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Neotech Chemical Inventory',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final surfaceColor = Theme.of(context).cardTheme.color;
+    final statusColor = chemical.isLowStock
+        ? colorScheme.tertiary
+        : colorScheme.secondary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: surfaceColor ?? theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: kElevationToShadow[1],
       ),
-      home: const MyHomePage(title: 'Inventory Dashboard'),
-    );
-  }
-}
-
-class ChemicalRecord {
-  const ChemicalRecord({
-    required this.name,
-    required this.containers,
-    required this.hasSds,
-    required this.incidents,
-    required this.location,
-  });
-
-  final String name;
-  final int containers;
-  final bool hasSds;
-  final int incidents;
-  final String location;
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  final List<ChemicalRecord> _chemicals = const [
-    ChemicalRecord(
-      name: 'Acetone',
-      containers: 3,
-      hasSds: true,
-      incidents: 1,
-      location: 'Flammable Cabinet',
-    ),
-    ChemicalRecord(
-      name: 'Hydrochloric Acid',
-      containers: 2,
-      hasSds: true,
-      incidents: 0,
-      location: 'Corrosives Cabinet',
-    ),
-    ChemicalRecord(
-      name: 'Sodium Hydroxide',
-      containers: 4,
-      hasSds: false,
-      incidents: 0,
-      location: 'Corrosives Cabinet',
-    ),
-    ChemicalRecord(
-      name: 'Ethanol',
-      containers: 5,
-      hasSds: true,
-      incidents: 2,
-      location: 'Flammable Cabinet',
-    ),
-    ChemicalRecord(
-      name: 'Ammonia',
-      containers: 1,
-      hasSds: false,
-      incidents: 0,
-      location: 'Ventilated Storage',
-    ),
-  ];
-
-  int get totalChemicals => _chemicals.length;
-
-  int get availableSds => _chemicals.where((chemical) => chemical.hasSds).length;
-
-  int get incidentsReported =>
-      _chemicals.fold(0, (count, chemical) => count + chemical.incidents);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            sliver: SliverToBoxAdapter(
-              child: DashboardSummary(
-                totalChemicals: totalChemicals,
-                sdsAvailable: availableSds,
-                incidentsReported: incidentsReported,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Semantics(
+              image: true,
+              label: '${chemical.name} container icon',
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.science_outlined,
+                  color: statusColor,
+                ),
               ),
             ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            sliver: SliverList.builder(
-              itemCount: _chemicals.length,
-              itemBuilder: (context, index) {
-                final chemical = _chemicals[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      child: Text(chemical.name.substring(0, 1).toUpperCase()),
-                    ),
-                    title: Text(
-                      chemical.name,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    subtitle: Text('${chemical.containers} containers • ${chemical.location}'),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              chemical.hasSds ? Icons.check_circle : Icons.error_outline,
-                              color: chemical.hasSds
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).colorScheme.error,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(chemical.hasSds ? 'SDS' : 'Missing'),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${chemical.incidents} incidents',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    chemical.name,
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
-                );
-              },
+                  const SizedBox(height: 4),
+                  Text(
+                    'Location: ${chemical.location} • Hazard: ${chemical.hazard}',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  LinearProgressIndicator(
+                    value: chemical.stockLevel,
+                    semanticsLabel: '${chemical.name} fill level',
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _StatusChip(
+                        label: '${(chemical.stockLevel * 100).round()}% full',
+                        icon: Icons.local_shipping_outlined,
+                      ),
+                      _StatusChip(
+                        label: 'Temp: ${chemical.temperature}°C',
+                        icon: Icons.thermostat,
+                      ),
+                      _StatusChip(
+                        label: 'Ventilation: ${chemical.ventilation}',
+                        icon: Icons.air_outlined,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class DashboardSummary extends StatelessWidget {
-  const DashboardSummary({
-    super.key,
-    required this.totalChemicals,
-    required this.sdsAvailable,
-    required this.incidentsReported,
-  });
-
-  final int totalChemicals;
-  final int sdsAvailable;
-  final int incidentsReported;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme colors = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    return Card(
-      elevation: 1,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Dashboard Summary',
-              style: textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final bool useRowLayout = constraints.maxWidth > 600;
-                final children = [
-                  _SummaryTile(
-                    key: const Key('totalChemicalsTile'),
-                    label: 'Total chemicals',
-                    value: totalChemicals,
-                    icon: Icons.inventory_2,
-                    color: colors.primary,
-                    valueKey: const Key('totalChemicalsValue'),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  _SummaryTile(
-                    key: const Key('sdsTile'),
-                    label: 'SDS available',
-                    value: sdsAvailable,
-                    icon: Icons.description_outlined,
-                    color: colors.tertiary,
-                    valueKey: const Key('sdsValue'),
+                  child: Text(
+                    chemical.isLowStock ? 'Low stock' : 'Stable',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  _SummaryTile(
-                    key: const Key('incidentsTile'),
-                    label: 'Incidents reported',
-                    value: incidentsReported,
-                    icon: Icons.warning_amber_rounded,
-                    color: colors.error,
-                    valueKey: const Key('incidentsValue'),
-                  ),
-                ];
-
-                if (useRowLayout) {
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: children
-                        .map(
-                          (child) => Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: child,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  );
-                }
-
-                final double tileWidth = constraints.maxWidth >= 500
-                    ? (constraints.maxWidth - 8) / 2
-                    : constraints.maxWidth;
-
-                return Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: children
-                      .map(
-                        (child) => SizedBox(
-                          width: tileWidth,
-                          child: child,
-                        ),
-                      )
-                      .toList(),
-                );
-              },
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'View details',
+                      icon: const Icon(Icons.visibility_outlined),
+                      onPressed: () {},
+                      semanticLabel: 'View ${chemical.name} details',
+                    ),
+                    IconButton(
+                      tooltip: 'Restock',
+                      icon: const Icon(Icons.add_box_outlined),
+                      onPressed: () {},
+                      semanticLabel: 'Restock ${chemical.name}',
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Chip(
+      label: Text(label),
+      avatar: Icon(icon, size: 18, semanticLabel: label),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    );
+  }
+}
+
+class _AlertTile extends StatelessWidget {
+  const _AlertTile({required this.chemical});
+
+  final Chemical chemical;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      leading: Semantics(
+        image: true,
+        label: '${chemical.name} alert icon',
+        child: CircleAvatar(
+          backgroundColor: colorScheme.error.withOpacity(0.15),
+          child: Icon(
+            Icons.error_outline,
+            color: colorScheme.error,
+          ),
+        ),
+      ),
+      title: Text(
+        '${chemical.name} is low in storage',
+        style: theme.textTheme.titleMedium,
+      ),
+      subtitle: Text(
+        'Only ${(chemical.stockLevel * 100).round()}% remains. Confirm supplier ETA and move to ventilated shelf.',
+      ),
+      trailing: Semantics(
+        button: true,
+        label: 'Acknowledge alert for ${chemical.name}',
+        child: TextButton(
+          onPressed: () {},
+          child: const Text('Acknowledge'),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.isError = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = isError
+        ? theme.colorScheme.error
+        : theme.colorScheme.primary;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        children: [
+          Semantics(
+            image: true,
+            label: '$title illustration',
+            child: Icon(
+              icon,
+              size: 56,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            style: theme.textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -327,3 +310,70 @@ class _SummaryTile extends StatelessWidget {
     );
   }
 }
+
+class Chemical {
+  const Chemical({
+    required this.name,
+    required this.location,
+    required this.hazard,
+    required this.stockLevel,
+    required this.temperature,
+    required this.ventilation,
+    this.hasAlert = false,
+  });
+
+  final String name;
+  final String location;
+  final String hazard;
+  final double stockLevel; // 0.0 - 1.0
+  final double temperature;
+  final String ventilation;
+  final bool hasAlert;
+
+  bool get isLowStock => stockLevel < 0.35;
+}
+
+const _sampleChemicals = [
+  Chemical(
+    name: 'Acetone',
+    location: 'Cabinet A3',
+    hazard: 'Flammable',
+    stockLevel: 0.28,
+    temperature: 22,
+    ventilation: 'Required',
+    hasAlert: true,
+  ),
+  Chemical(
+    name: 'Hydrochloric Acid',
+    location: 'Cabinet B1',
+    hazard: 'Corrosive',
+    stockLevel: 0.62,
+    temperature: 20,
+    ventilation: 'Required',
+  ),
+  Chemical(
+    name: 'Sodium Hydroxide',
+    location: 'Cabinet C2',
+    hazard: 'Caustic',
+    stockLevel: 0.44,
+    temperature: 21,
+    ventilation: 'Recommended',
+  ),
+  Chemical(
+    name: 'Ethanol',
+    location: 'Cold Storage',
+    hazard: 'Flammable',
+    stockLevel: 0.82,
+    temperature: 4,
+    ventilation: 'Recommended',
+  ),
+  Chemical(
+    name: 'Ammonia Solution',
+    location: 'Ventilated Shelf',
+    hazard: 'Toxic',
+    stockLevel: 0.31,
+    temperature: 19,
+    ventilation: 'Required',
+    hasAlert: true,
+  ),
+];
