@@ -1,4 +1,7 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   runApp(const MyApp());
@@ -7,116 +10,324 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Text Recognition',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const TextRecognitionPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class TextRecognitionPage extends StatefulWidget {
+  const TextRecognitionPage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<TextRecognitionPage> createState() => _TextRecognitionPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _TextRecognitionPageState extends State<TextRecognitionPage> {
+  CameraController? _cameraController;
+  PermissionStatus _permissionStatus = PermissionStatus.denied;
+  bool _isInitializingCamera = false;
+  bool _isProcessingText = false;
+  String? _recognizedText;
+  String? _errorMessage;
 
-  void _incrementCounter() {
+  final TextRecognizer _textRecognizer = TextRecognizer();
+
+  @override
+  void initState() {
+    super.initState();
+    _requestPermissionAndInitialize();
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    _textRecognizer.close();
+    super.dispose();
+  }
+
+  Future<void> _requestPermissionAndInitialize() async {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _isInitializingCamera = true;
+      _errorMessage = null;
     });
+
+    final status = await Permission.camera.request();
+    if (!mounted) return;
+
+    setState(() => _permissionStatus = status);
+
+    if (status.isGranted) {
+      await _initializeCamera();
+    } else {
+      setState(() => _isInitializingCamera = false);
+    }
+  }
+
+  Future<void> _initializeCamera() async {
+    setState(() {
+      _isInitializingCamera = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        setState(() {
+          _errorMessage = 'No camera available on this device.';
+        });
+        return;
+      }
+
+      final controller = CameraController(
+        cameras.first,
+        ResolutionPreset.medium,
+        enableAudio: false,
+      );
+      await controller.initialize();
+
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+
+      setState(() {
+        _cameraController?.dispose();
+        _cameraController = controller;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to initialize camera: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isInitializingCamera = false);
+      }
+    }
+  }
+
+  Future<void> _captureAndRecognize() async {
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized || _isProcessingText) {
+      return;
+    }
+
+    setState(() {
+      _isProcessingText = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final file = await controller.takePicture();
+      final inputImage = InputImage.fromFilePath(file.path);
+      final recognizedText = await _textRecognizer.processImage(inputImage);
+
+      setState(() {
+        _recognizedText = recognizedText.text.isNotEmpty
+            ? recognizedText.text
+            : 'No text detected in the captured image.';
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to recognize text: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessingText = false);
+      }
+    }
+  }
+
+  Widget _buildPermissionNotice() {
+    final description = _permissionStatus.isPermanentlyDenied
+        ? 'Camera permission is permanently denied. Please enable it in settings to scan text.'
+        : 'Camera permission is required to capture photos for text recognition.';
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.camera_alt_outlined,
+          size: 48,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Text(
+            description,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton(
+          onPressed: _permissionStatus.isPermanentlyDenied
+              ? openAppSettings
+              : _requestPermissionAndInitialize,
+          child: Text(_permissionStatus.isPermanentlyDenied
+              ? 'Open Settings'
+              : 'Grant Permission'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCameraContent() {
+    if (!_permissionStatus.isGranted) {
+      return _buildPermissionNotice();
+    }
+
+    if (_isInitializingCamera) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null) {
+      return _buildErrorCard(_errorMessage!);
+    }
+
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) {
+      return const Center(child: Text('Camera is not ready yet.'));
+    }
+
+    return Stack(
+      children: [
+        AspectRatio(
+          aspectRatio: controller.value.aspectRatio,
+          child: CameraPreview(controller),
+        ),
+        if (_isProcessingText)
+          Container(
+            color: Colors.black45,
+            child: const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildErrorCard(String message) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.error_outline, color: Colors.red.shade400),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: Colors.red.shade700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecognizedText() {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.article_outlined),
+              const SizedBox(width: 8),
+              Text('Extracted Text', style: textTheme.titleMedium),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_errorMessage != null)
+            _buildErrorCard(_errorMessage!)
+          else if (_recognizedText != null)
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 60, maxHeight: 200),
+              child: SingleChildScrollView(
+                child: Text(
+                  _recognizedText!,
+                  style: textTheme.bodyLarge,
+                ),
+              ),
+            )
+          else
+            Text(
+              'Capture a photo to see recognized text here.',
+              style: textTheme.bodyLarge?.copyWith(color: Colors.grey.shade600),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Text Recognition OCR'),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Capture a photo to extract text using Google ML Kit.',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    color: Colors.black,
+                    child: _buildCameraContent(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: (_cameraController?.value.isInitialized ?? false) &&
+                            !_isProcessingText &&
+                            _permissionStatus.isGranted
+                        ? _captureAndRecognize
+                        : null,
+                    icon: const Icon(Icons.camera_alt_outlined),
+                    label: const Text('Capture & Recognize'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildRecognizedText(),
+            ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
