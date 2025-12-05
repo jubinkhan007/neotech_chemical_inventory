@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../../features/camera/presentation/camera_screen.dart';
+import '../../features/chemicals/presentation/chemicals_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/data_entry/presentation/data_entry_screen.dart';
 
@@ -17,6 +18,7 @@ class AppRoutes {
   const AppRoutes._();
 
   static const dashboard = AppRoute(name: 'dashboard', path: '/');
+  static const chemicals = AppRoute(name: 'chemicals', path: '/chemicals');
   static const camera = AppRoute(name: 'camera', path: '/camera');
   static const dataEntry = AppRoute(name: 'data-entry', path: '/data-entry');
 }
@@ -30,6 +32,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.dashboard.path,
         pageBuilder: (context, state) => const MaterialPage(
           child: DashboardScreen(),
+        ),
+      ),
+      GoRoute(
+        name: AppRoutes.chemicals.name,
+        path: AppRoutes.chemicals.path,
+        pageBuilder: (context, state) => const MaterialPage(
+          child: ChemicalsScreen(),
         ),
       ),
       GoRoute(

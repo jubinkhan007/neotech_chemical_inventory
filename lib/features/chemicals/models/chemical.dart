@@ -7,12 +7,23 @@ part 'chemical.g.dart';
 class Chemical with _$Chemical {
   const factory Chemical({
     required String id,
-    required String name,
-    @JsonKey(name: 'cas_number') required String casNumber,
-    @JsonKey(name: 'storage_location') required String storageLocation,
-    required int quantity,
+    required String productName,
+    required String casNumber,
+    required String manufacturer,
+    required InventoryData inventoryData,
   }) = _Chemical;
 
   factory Chemical.fromJson(Map<String, dynamic> json) =>
       _$ChemicalFromJson(json);
+}
+
+@freezed
+class InventoryData with _$InventoryData {
+  const factory InventoryData({
+    required double currentStock,
+    required String unit,
+  }) = _InventoryData;
+
+  factory InventoryData.fromJson(Map<String, dynamic> json) =>
+      _$InventoryDataFromJson(json);
 }

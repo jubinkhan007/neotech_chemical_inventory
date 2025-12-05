@@ -3,37 +3,48 @@ import 'package:neotech_chemical_inventory/features/chemicals/models/chemical.da
 
 void main() {
   group('Chemical', () {
-    const chemical = Chemical(
-      id: 'abc123',
-      name: 'Acetone',
-      casNumber: '67-64-1',
-      storageLocation: 'Cabinet A',
-      quantity: 5,
-    );
-
-    test('serializes to JSON with API field names', () {
-      expect(
-        chemical.toJson(),
-        equals({
-          'id': 'abc123',
-          'name': 'Acetone',
-          'cas_number': '67-64-1',
-          'storage_location': 'Cabinet A',
-          'quantity': 5,
-        }),
-      );
-    });
-
     test('deserializes from JSON with API field names', () {
       const json = {
         'id': 'abc123',
-        'name': 'Acetone',
-        'cas_number': '67-64-1',
-        'storage_location': 'Cabinet A',
-        'quantity': 5,
+        'productName': 'Acetone',
+        'casNumber': '67-64-1',
+        'manufacturer': 'ChemCorp',
+        'inventoryData': {
+          'currentStock': 450.0,
+          'unit': 'liters',
+        },
       };
 
-      expect(Chemical.fromJson(json), equals(chemical));
+      final chemical = Chemical.fromJson(json);
+
+      expect(chemical.id, 'abc123');
+      expect(chemical.productName, 'Acetone');
+      expect(chemical.casNumber, '67-64-1');
+      expect(chemical.manufacturer, 'ChemCorp');
+      expect(chemical.inventoryData.currentStock, 450.0);
+      expect(chemical.inventoryData.unit, 'liters');
+    });
+
+    test('serializes to JSON with API field names', () {
+      const chemical = Chemical(
+        id: 'abc123',
+        productName: 'Acetone',
+        casNumber: '67-64-1',
+        manufacturer: 'ChemCorp',
+        inventoryData: InventoryData(
+          currentStock: 450.0,
+          unit: 'liters',
+        ),
+      );
+
+      final json = chemical.toJson();
+
+      expect(json['id'], 'abc123');
+      expect(json['productName'], 'Acetone');
+      expect(json['casNumber'], '67-64-1');
+      expect(json['manufacturer'], 'ChemCorp');
+      expect(json['inventoryData']['currentStock'], 450.0);
+      expect(json['inventoryData']['unit'], 'liters');
     });
   });
 }

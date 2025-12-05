@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../domain/chemical.dart';
 import '../domain/chemicals_repository.dart';
+import '../domain/dashboard_metrics.dart';
 
 class MockChemicalsRepository implements ChemicalsRepository {
   MockChemicalsRepository({Random? random}) : _random = random ?? Random();
@@ -9,7 +10,7 @@ class MockChemicalsRepository implements ChemicalsRepository {
   final Random _random;
 
   @override
-  Future<List<Chemical>> fetchChemicals() async {
+  Future<ChemicalsApiResponse> fetchChemicals() async {
     await Future<void>.delayed(const Duration(milliseconds: 500));
 
     // Randomly throw to emulate flaky networks.
@@ -17,8 +18,9 @@ class MockChemicalsRepository implements ChemicalsRepository {
       throw Exception('Network error');
     }
 
-    return const <Chemical>[
+    const chemicals = <Chemical>[
       Chemical(
+        id: 'MOCK001',
         productName: 'Sodium Chloride',
         casNumber: '7647-14-5',
         manufacturer: 'NeoTech Labs',
@@ -26,6 +28,7 @@ class MockChemicalsRepository implements ChemicalsRepository {
         unit: 'kg',
       ),
       Chemical(
+        id: 'MOCK002',
         productName: 'Acetic Acid',
         casNumber: '64-19-7',
         manufacturer: 'Universal Reagents',
@@ -33,6 +36,7 @@ class MockChemicalsRepository implements ChemicalsRepository {
         unit: 'L',
       ),
       Chemical(
+        id: 'MOCK003',
         productName: 'Ethanol',
         casNumber: '64-17-5',
         manufacturer: 'BioChem Co.',
@@ -40,5 +44,16 @@ class MockChemicalsRepository implements ChemicalsRepository {
         unit: 'L',
       ),
     ];
+
+    const metrics = DashboardMetrics(
+      totalChemicals: 3,
+      activeSDSDocuments: 3,
+      recentIncidents: 0,
+    );
+
+    return const ChemicalsApiResponse(
+      chemicals: chemicals,
+      metrics: metrics,
+    );
   }
 }

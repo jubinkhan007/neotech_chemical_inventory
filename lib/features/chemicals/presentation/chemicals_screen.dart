@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../common/widgets/repository_provider.dart';
+import '../../../core/ui/app_spacing.dart';
+import '../data/chemicals_repository.dart';
 import '../domain/chemical.dart';
-import '../domain/chemicals_repository.dart';
-import 'chemicals_notifier.dart';
-import 'chemicals_state.dart';
+import '../presentation/chemicals_notifier.dart';
+import '../presentation/chemicals_state.dart';
 
 class ChemicalsScreen extends StatefulWidget {
   const ChemicalsScreen({super.key});
@@ -14,20 +14,17 @@ class ChemicalsScreen extends StatefulWidget {
 }
 
 class _ChemicalsScreenState extends State<ChemicalsScreen> {
-  ChemicalsNotifier? _notifier;
+  late final ChemicalsNotifier _notifier;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_notifier == null) {
-      final repository = RepositoryProvider.of<ChemicalsRepository>(context);
-      _notifier = ChemicalsNotifier(repository)..loadChemicals();
-    }
+  void initState() {
+    super.initState();
+    _notifier = ChemicalsNotifier(ChemicalsRepositoryImpl())..loadChemicals();
   }
 
   @override
   void dispose() {
-    _notifier?.dispose();
+    _notifier.dispose();
     super.dispose();
   }
 
@@ -37,11 +34,11 @@ class _ChemicalsScreenState extends State<ChemicalsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chemical Inventory'),
+        title: const Text('Chemicals List'),
       ),
       body: SafeArea(
         child: ValueListenableBuilder<ChemicalsState>(
-          valueListenable: _notifier!,
+          valueListenable: _notifier,
           builder: (context, state, _) {
             switch (state.status) {
               case ChemicalsStatus.loading:
@@ -59,7 +56,7 @@ class _ChemicalsScreenState extends State<ChemicalsScreen> {
                   onRefresh: _notifier.refresh,
                   color: colorScheme.primary,
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     itemCount: state.chemicals.length,
                     itemBuilder: (context, index) {
                       final chemical = state.chemicals[index];
@@ -121,7 +118,7 @@ class _ErrorSection extends StatelessWidget {
       child: Semantics(
         label: 'Error loading chemical inventory',
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -166,7 +163,7 @@ class _EmptySection extends StatelessWidget {
       child: Semantics(
         label: 'No chemicals in inventory',
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -205,19 +202,19 @@ class _ChemicalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final cardColor = colorScheme.surface;
+    final cardColor = colorScheme.surfaceContainerHighest;
     final onCardColor = colorScheme.onSurface;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Semantics(
         label:
             '${chemical.productName}, CAS ${chemical.casNumber}, ${chemical.manufacturer}, Stock ${chemical.stockQuantity} ${chemical.unit}',
         child: Card(
-          elevation: 1,
+          elevation: 0,
           color: cardColor,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -228,7 +225,7 @@ class _ChemicalCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: AppSpacing.sm),
                 _DetailRow(
                   label: 'CAS Number',
                   value: chemical.casNumber,

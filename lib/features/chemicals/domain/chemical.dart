@@ -1,5 +1,7 @@
+/// Domain model for a chemical in the inventory.
 class Chemical {
   const Chemical({
+    required this.id,
     required this.productName,
     required this.casNumber,
     required this.manufacturer,
@@ -7,6 +9,7 @@ class Chemical {
     required this.unit,
   });
 
+  final String id;
   final String productName;
   final String casNumber;
   final String manufacturer;

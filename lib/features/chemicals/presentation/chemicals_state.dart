@@ -1,4 +1,5 @@
 import '../domain/chemical.dart';
+import '../domain/dashboard_metrics.dart';
 
 enum ChemicalsStatus { loading, success, empty, error }
 
@@ -6,6 +7,7 @@ class ChemicalsState {
   const ChemicalsState({
     required this.status,
     required this.chemicals,
+    this.metrics,
     this.errorMessage,
   });
 
@@ -14,10 +16,14 @@ class ChemicalsState {
         chemicals: <Chemical>[],
       );
 
-  factory ChemicalsState.success(List<Chemical> chemicals) {
+  factory ChemicalsState.success(
+    List<Chemical> chemicals,
+    DashboardMetrics metrics,
+  ) {
     return ChemicalsState(
       status: chemicals.isEmpty ? ChemicalsStatus.empty : ChemicalsStatus.success,
       chemicals: chemicals,
+      metrics: metrics,
     );
   }
 
@@ -29,5 +35,6 @@ class ChemicalsState {
 
   final ChemicalsStatus status;
   final List<Chemical> chemicals;
+  final DashboardMetrics? metrics;
   final String? errorMessage;
 }

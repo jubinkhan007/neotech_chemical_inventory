@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 
 import '../data/chemicals_repository.dart';
-import '../models/chemical.dart';
+import '../domain/chemical.dart';
+import '../domain/chemicals_repository.dart';
+import '../domain/dashboard_metrics.dart';
 
 abstract class ChemicalsState {
   const ChemicalsState();
@@ -22,14 +24,15 @@ class ChemicalsEmpty extends ChemicalsState {
 }
 
 class ChemicalsLoaded extends ChemicalsState {
-  const ChemicalsLoaded(this.chemicals);
+  const ChemicalsLoaded(this.chemicals, this.metrics);
 
   final List<Chemical> chemicals;
+  final DashboardMetrics metrics;
 }
 
 class ChemicalsNotifier extends ChangeNotifier {
-  ChemicalsNotifier({required ChemicalsRepository repository})
-      : _repository = repository,
+  ChemicalsNotifier({ChemicalsRepository? repository})
+      : _repository = repository ?? ChemicalsRepositoryImpl(),
         _state = const ChemicalsLoading();
 
   final ChemicalsRepository _repository;
@@ -42,11 +45,11 @@ class ChemicalsNotifier extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final chemicals = await _repository.fetchChemicals();
-      if (chemicals.isEmpty) {
+      final response = await _repository.fetchChemicals();
+      if (response.chemicals.isEmpty) {
         _state = const ChemicalsEmpty();
       } else {
-        _state = ChemicalsLoaded(chemicals);
+        _state = ChemicalsLoaded(response.chemicals, response.metrics);
       }
     } on Exception catch (error) {
       _state = ChemicalsError(error.toString());

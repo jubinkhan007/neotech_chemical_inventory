@@ -19,8 +19,8 @@ class ChemicalsNotifier extends ValueNotifier<ChemicalsState> {
 
   Future<void> _fetchAndUpdate() async {
     try {
-      final chemicals = await _repository.fetchChemicals();
-      value = ChemicalsState.success(chemicals);
+      final response = await _repository.fetchChemicals();
+      value = ChemicalsState.success(response.chemicals, response.metrics);
     } catch (error) {
       value = ChemicalsState.error(error.toString());
     }
