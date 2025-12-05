@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../../core/router/app_router.dart';
 import '../../../core/ui/app_spacing.dart';
-import '../../chemicals/data/chemicals_repository.dart';
-import '../../chemicals/domain/chemicals_repository.dart';
+import '../../chemicals/data/cached_chemicals_repository.dart';
+import '../../chemicals/data/chemical_cache.dart';
 import '../../chemicals/domain/dashboard_metrics.dart';
 import '../../chemicals/presentation/chemicals_notifier.dart';
 import '../../chemicals/presentation/chemicals_state.dart';
@@ -16,18 +17,56 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
-  late final ChemicalsNotifier _notifier;
+class _DashboardScreenState extends State<DashboardScreen>
+    with SingleTickerProviderStateMixin {
+  ChemicalsNotifier? _notifier;
+  late final CachedChemicalsRepository _repository;
+  late final AnimationController _animationController;
+  late final Animation<double> _fadeAnimation;
+  late final Animation<Offset> _slideAnimation;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _notifier = ChemicalsNotifier(ChemicalsRepositoryImpl())..loadChemicals();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _repository = CachedChemicalsRepository();
+    _initRepository();
+  }
+
+  Future<void> _initRepository() async {
+    // Register adapters if not already registered
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(ChemicalCacheAdapter());
+    }
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(DashboardMetricsCacheAdapter());
+    }
+    await _repository.init();
+    _notifier = ChemicalsNotifier(_repository)..loadChemicals();
+    _animationController.forward();
+    if (mounted) setState(() => _isInitialized = true);
   }
 
   @override
   void dispose() {
-    _notifier.dispose();
+    _animationController.dispose();
+    _notifier?.dispose();
     super.dispose();
   }
 
@@ -36,6 +75,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
+    // Show loading state while initializing
+    if (!_isInitialized || _notifier == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Chemical Inventory'),
+          centerTitle: true,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chemical Inventory'),
@@ -43,48 +93,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: SafeArea(
         child: ValueListenableBuilder<ChemicalsState>(
-          valueListenable: _notifier,
+          valueListenable: _notifier!,
           builder: (context, state, _) {
             return RefreshIndicator(
-              onRefresh: _notifier.refresh,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Dashboard Metrics Section
-                    Text(
-                      'Dashboard Overview',
-                      style: textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildMetricsSection(state, colorScheme, textTheme),
-                    const SizedBox(height: AppSpacing.xl),
+              onRefresh: () async {
+                await _notifier!.refresh();
+                _animationController.reset();
+                _animationController.forward();
+              },
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Dashboard Metrics Section
+                        Text(
+                          'Dashboard Overview',
+                          style: textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildMetricsSection(state, colorScheme, textTheme),
+                        const SizedBox(height: AppSpacing.xl),
 
-                    // Quick Actions Section
-                    Text(
-                      'Quick Actions',
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildQuickActions(context, colorScheme),
-                    const SizedBox(height: AppSpacing.xl),
+                        // Quick Actions Section
+                        Text(
+                          'Quick Actions',
+                          style: textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildQuickActions(context, colorScheme),
+                        const SizedBox(height: AppSpacing.xl),
 
-                    // Recent Activity Section
-                    Text(
-                      'Recent Activity',
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                        // Recent Activity Section
+                        Text(
+                          'Recent Activity',
+                          style: textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildRecentActivity(colorScheme, textTheme),
+                      ],
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildRecentActivity(colorScheme, textTheme),
-                  ],
+                  ),
                 ),
               ),
             );

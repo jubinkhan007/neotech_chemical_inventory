@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../../core/ui/app_spacing.dart';
-import '../data/chemicals_repository.dart';
+import '../data/cached_chemicals_repository.dart';
+import '../data/chemical_cache.dart';
 import '../domain/chemical.dart';
 import '../presentation/chemicals_notifier.dart';
 import '../presentation/chemicals_state.dart';
@@ -15,22 +17,45 @@ class ChemicalsScreen extends StatefulWidget {
 
 class _ChemicalsScreenState extends State<ChemicalsScreen> {
   late final ChemicalsNotifier _notifier;
+  late final CachedChemicalsRepository _repository;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _notifier = ChemicalsNotifier(ChemicalsRepositoryImpl())..loadChemicals();
+    _repository = CachedChemicalsRepository();
+    _initRepository();
+  }
+
+  Future<void> _initRepository() async {
+    // Register adapters if not already registered
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(ChemicalCacheAdapter());
+    }
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(DashboardMetricsCacheAdapter());
+    }
+    await _repository.init();
+    _notifier = ChemicalsNotifier(_repository)..loadChemicals();
+    if (mounted) setState(() => _isInitialized = true);
   }
 
   @override
   void dispose() {
-    _notifier.dispose();
+    if (_isInitialized) _notifier.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
+    if (!_isInitialized) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Chemicals List')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -55,22 +80,83 @@ class _ChemicalsScreenState extends State<ChemicalsScreen> {
                 return RefreshIndicator(
                   onRefresh: _notifier.refresh,
                   color: colorScheme.primary,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    itemCount: state.chemicals.length,
-                    itemBuilder: (context, index) {
-                      final chemical = state.chemicals[index];
-                      return _ChemicalCard(
-                        chemical: chemical,
-                        colorScheme: colorScheme,
-                      );
-                    },
+                  child: _AnimatedChemicalList(
+                    chemicals: state.chemicals,
+                    colorScheme: colorScheme,
                   ),
                 );
             }
           },
         ),
       ),
+    );
+  }
+}
+
+/// Animated list that staggers the appearance of list items
+class _AnimatedChemicalList extends StatefulWidget {
+  const _AnimatedChemicalList({
+    required this.chemicals,
+    required this.colorScheme,
+  });
+
+  final List<Chemical> chemicals;
+  final ColorScheme colorScheme;
+
+  @override
+  State<_AnimatedChemicalList> createState() => _AnimatedChemicalListState();
+}
+
+class _AnimatedChemicalListState extends State<_AnimatedChemicalList>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 300 + (widget.chemicals.length * 100)),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      itemCount: widget.chemicals.length,
+      itemBuilder: (context, index) {
+        final chemical = widget.chemicals[index];
+        final delay = index / widget.chemicals.length;
+        final animation = CurvedAnimation(
+          parent: _controller,
+          curve: Interval(
+            delay * 0.5,
+            delay * 0.5 + 0.5,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.2, 0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: _ChemicalCard(
+              chemical: chemical,
+              colorScheme: widget.colorScheme,
+            ),
+          ),
+        );
+      },
     );
   }
 }
