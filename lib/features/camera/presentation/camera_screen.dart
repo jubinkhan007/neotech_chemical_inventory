@@ -139,62 +139,43 @@ class _CameraScreenState extends State<CameraScreen> {
         title: const Text('Camera'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ValueListenableBuilder<PickedImageState>(
-          valueListenable: _imageState,
-          builder: (context, state, _) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: state.isProcessing ? null : _captureImage,
-                  icon: const Icon(Icons.camera_alt_outlined),
-                  label: Text(state.isProcessing ? 'Capturing...' : 'Capture Image'),
-                ),
-                const SizedBox(height: 16),
-                if (state.errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      state.errorMessage!,
-                      style: const TextStyle(color: Colors.red),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ElevatedButton.icon(
+              onPressed: _pickImage,
+              icon: const Icon(Icons.camera_alt_outlined),
+              label: const Text('Capture photo'),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            if (_image != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Last capture:',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: AppSpacing.sm),
+                  AspectRatio(
+                    aspectRatio: 4 / 3,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(_image!.path, fit: BoxFit.cover),
                     ),
                   ),
-                if (state.path != null)
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'File: ${state.fileName ?? 'Unknown'}',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 4),
-                        if (state.timestamp != null)
-                          Text('Captured: ${_formatTimestamp(state.timestamp!)}'),
-                        const SizedBox(height: 12),
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              File(state.path!),
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  const Expanded(
-                    child: Center(
-                      child: Text('No image captured yet.'),
-                    ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    _image!.name,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
-              ],
-            );
-          },
+                ],
+              )
+            else
+              Text(
+                'No photo captured yet.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+          ],
         ),
       ),
     );
