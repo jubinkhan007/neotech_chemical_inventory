@@ -40,3 +40,8 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Offline-first strategy
+- Record submissions are added to a local queue with timestamps so nothing is lost offline.
+- A background sync process uploads queued changes automatically when connectivity returns.
+- If a server update conflicts with a queued item, the app compares timestamps and prompts the user to resolve the difference.
